@@ -1,45 +1,68 @@
 pipeline {
     agent { label "Jenkins-Agent" }
+
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Docker Image Tag')
+    }
+
     environment {
-              APP_NAME = "register-app-pipeline"
+        APP_NAME = "register-app-pipeline"
+        DOCKER_USER = "cyruss07"
+        IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}"
     }
 
     stages {
+
         stage("Cleanup Workspace") {
             steps {
                 cleanWs()
             }
         }
 
-        stage("Checkout from SCM") {
-               steps {
-                   git branch: 'main', credentialsId: 'github', url: 'https://github.com/Ashfaque-9x/gitops-register-app'
-               }
+        stage("Checkout GitOps Repo") {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github',
+                    url: 'https://github.com/mahamadhusen-ce/gitops-register-app'
+            }
         }
 
-        stage("Update the Deployment Tags") {
+        stage("Update Deployment YAML") {
             steps {
                 sh """
-                   cat deployment.yaml
-                   sed -i 's/${APP_NAME}.*/${APP_NAME}:${IMAGE_TAG}/g' deployment.yaml
-                   cat deployment.yaml
+                echo "Before update:"
+                cat deployment.yaml
+
+                sed -i "s|image:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" deployment.yaml
+
+                echo "After update:"
+                cat deployment.yaml
                 """
             }
         }
 
-        stage("Push the changed deployment file to Git") {
+        stage("Push Changes to Git") {
             steps {
                 sh """
-                   git config --global user.name "Ashfaque-9x"
-                   git config --global user.email "ashfaque.s510@gmail.com"
-                   git add deployment.yaml
-                   git commit -m "Updated Deployment Manifest"
+                git config --global user.name "mahamadhusen-ce"
+                git config --global user.email "07kureshi@gmail.com"
+
+                git add deployment.yaml
+                git commit -m "Updated image to ${IMAGE_TAG}" || echo "No changes"
                 """
                 withCredentials([gitUsernamePassword(credentialsId: 'github', gitToolName: 'Default')]) {
-                  sh "git push https://github.com/Ashfaque-9x/gitops-register-app main"
+                    sh "git push origin main"
                 }
             }
         }
-      
+    }
+
+    post {
+        success {
+            echo "✅ CD Pipeline completed — ArgoCD auto deploy करेगा 🚀"
+        }
+        failure {
+            echo "❌ CD Pipeline failed"
+        }
     }
 }
