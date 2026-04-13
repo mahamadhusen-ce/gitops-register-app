@@ -1,5 +1,5 @@
 pipeline {
-    agent { label "Jenkins-Agent" }
+    agent { label "Jenkins-agent" }
 
     parameters {
         string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Docker Image Tag')
